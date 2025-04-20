@@ -1,0 +1,64 @@
+POST http://localhost:3000/api/users/register
+Content-Type: application/json
+Body:
+{
+    "username": "testuser2",
+    "email": "test2@example.com",
+    "password": "password123"
+}
+
+
+POST http://localhost:3000/api/users/login
+Content-Type: application/json
+Body:
+{
+    "username": "testuser2",
+    "email": "test2@example.com",
+    "password": "password123"
+}
+
+
+GET http://localhost:3000/api/users/profile/68044efc86606415762863cf
+Content-Type: application/json
+Header: Authorization :  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MDQ1MDEzMGZiYTlkNzA2MjA4YTBiYyIsImlhdCI6MTc0NTExNDY1OSwiZXhwIjoxNzQ1MTE4MjU5fQ.V2EROwPWfLrsK9Jnx6tB0bqnxkcdOwpwTOMLksTqkTM
+
+
+
+POST http://localhost:3000/api/polls
+Content-Type: application/json
+Header: Authorization :  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MDQ1MDEzMGZiYTlkNzA2MjA4YTBiYyIsImlhdCI6MTc0NTExNDY1OSwiZXhwIjoxNzQ1MTE4MjU5fQ.V2EROwPWfLrsK9Jnx6tB0bqnxkcdOwpwTOMLksTqkTM
+Body:
+{
+  "creator_id": "680450130fba9d706208a0bc",
+  "title": "Favorite Programming Language",
+  "description": "What's your preferred language?",
+  "options": ["JavaScript", "Python", "Java", "C#"],
+  "end_date": "2023-12-31"
+}
+
+GET http://localhost:3000/api/polls
+Content-Type: application/json
+
+GET http://localhost:5000/api/polls/6804590c60b8f4645178d7b0/results
+Content-Type: application/json
+
+
+
+inactive example:
+POST http://localhost:5000/api/polls/6804590c60b8f4645178d7b0/vote
+Content-Type: application/json
+Header: Authorization :  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MDQ1MDEzMGZiYTlkNzA2MjA4YTBiYyIsImlhdCI6MTc0NTExNDY1OSwiZXhwIjoxNzQ1MTE4MjU5fQ.V2EROwPWfLrsK9Jnx6tB0bqnxkcdOwpwTOMLksTqkTM
+Body:
+{ "option_id": "6804590c60b8f4645178d7b2" }
+
+already voted example:
+POST http://localhost:5000/api/polls/680462fe8e2ebf2ce2d26d30/vote
+Content-Type: application/json
+Header: Authorization :  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MDQ1MDEzMGZiYTlkNzA2MjA4YTBiYyIsImlhdCI6MTc0NTExNDY1OSwiZXhwIjoxNzQ1MTE4MjU5fQ.V2EROwPWfLrsK9Jnx6tB0bqnxkcdOwpwTOMLksTqkTM
+Body:
+{ "option_id": "680462fe8e2ebf2ce2d26d32" }
+
+GET http://localhost:5000/api/polls/680462fe8e2ebf2ce2d26d30/vote/status
+Content-Type: application/json
+Header: Authorization :  eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4MDQ1MDEzMGZiYTlkNzA2MjA4YTBiYyIsImlhdCI6MTc0NTExNDY1OSwiZXhwIjoxNzQ1MTE4MjU5fQ.V2EROwPWfLrsK9Jnx6tB0bqnxkcdOwpwTOMLksTqkTM
+

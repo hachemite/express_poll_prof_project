@@ -1,0 +1,24 @@
+<%- include('partials/header') %>
+
+<div class="row">
+  <div class="col-12">
+    <div class="jumbotron">
+      <% if (user) { %>
+        <h1 class="display-4">Welcome, <%= user.username %>!</h1>
+        <p class="lead">You are now logged into the Poll App. Create polls and vote on existing ones.</p>
+        <hr class="my-4">
+        <p>Click the button below to explore polls or create your own.</p>
+        <a class="btn btn-primary btn-lg" href="/polls" role="button">View Polls</a>
+      <% } else { %>
+        <h1 class="display-4">Welcome to Poll App</h1>
+        <p class="lead">Create and participate in polls with our easy-to-use platform.</p>
+        <hr class="my-4">
+        <p>Please login or register to get started.</p>
+        <a class="btn btn-primary btn-lg" href="/login" role="button">Login</a>
+        <a class="btn btn-outline-primary btn-lg" href="/register" role="button">Register</a>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>

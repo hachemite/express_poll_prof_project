@@ -1,0 +1,140 @@
+<%- include('partials/header') %>
+
+<div class="row mb-4">
+  <div class="col-md-8">
+    <h2>Available Polls</h2>
+  </div>
+  <div class="col-md-4 text-end">
+    <a href="/polls/new" class="btn btn-success">Create New Poll</a>
+  </div>
+</div>
+
+<%- include('partials/search') %>
+
+<div class="row" id="pollsList">
+  <div class="col-12">
+    <div class="text-center">
+      <div class="spinner-border" role="status">
+        <span class="visually-hidden">Loading...</span>
+      </div>
+      <p>Loading polls...</p>
+    </div>
+  </div>
+</div>
+
+<template id="pollCardTemplate">
+  <div class="col-md-6 col-lg-4 mb-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title poll-title"></h5>
+        <p class="card-text poll-description"></p>
+        <p class="text-muted">
+          <small>Created by: <span class="poll-creator"></span></small>
+          <br>
+          <small>Poll ID: <span class="poll-id"></span></small>
+        </p>
+      </div>
+      <div class="card-footer">
+        <a href="#" class="btn btn-primary poll-view-btn">View Poll</a>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  document.addEventListener('DOMContentLoaded', async function() {
+    try {
+      // Load initial polls
+      await loadAndDisplayPolls();
+      
+      // Setup search form
+      const searchForm = document.getElementById('searchForm');
+      const clearSearch = document.getElementById('clearSearch');
+      
+      searchForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        await loadAndDisplayPolls(document.getElementById('searchInput').value);
+      });
+      
+      clearSearch.addEventListener('click', async function() {
+        document.getElementById('searchInput').value = '';
+        await loadAndDisplayPolls();
+      });
+      
+    } catch (error) {
+      console.error('Full error:', error);
+      showError(error.message || 'Error loading polls. Please try again later.');
+    }
+  });
+
+  async function loadAndDisplayPolls(searchTerm = '') {
+    try {
+      let url = '/api/polls';
+      if (searchTerm) {
+        url += `?search=${encodeURIComponent(searchTerm)}`;
+      }
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch polls');
+      }
+      
+      const data = await response.json();
+      displayPolls(data.polls);
+      
+    } catch (error) {
+      console.error('Error:', error);
+      showError(error.message || 'Error loading polls. Please try again later.');
+    }
+  }
+
+  function displayPolls(polls) {
+    const pollsList = document.getElementById('pollsList');
+    pollsList.innerHTML = '';
+    
+    if (!polls || polls.length === 0) {
+      pollsList.innerHTML = `
+        <div class="col-12">
+          <div class="alert alert-info">
+            No polls found. Try a different search or create a new poll!
+          </div>
+        </div>
+      `;
+      return;
+    }
+    
+    const template = document.getElementById('pollCardTemplate');
+    
+    polls.forEach(poll => {
+      const pollCard = template.content.cloneNode(true);
+      
+      pollCard.querySelector('.poll-title').textContent = poll.title;
+      pollCard.querySelector('.poll-description').textContent = 
+        poll.description || 'No description provided';
+      
+      const creatorName = poll.creator_id?.username || 'Anonymous';
+      pollCard.querySelector('.poll-creator').textContent = creatorName;
+      
+      pollCard.querySelector('.poll-id').textContent = poll._id;
+      
+      const viewBtn = pollCard.querySelector('.poll-view-btn');
+      viewBtn.href = `/polls/${poll._id}`;
+      
+      pollsList.appendChild(pollCard);
+    });
+  }
+
+  function showError(message) {
+    document.getElementById('pollsList').innerHTML = `
+      <div class="col-12">
+        <div class="alert alert-danger">
+          ${message}
+        </div>
+      </div>
+    `;
+  }
+</script>
+
+<%- include('partials/footer') %>

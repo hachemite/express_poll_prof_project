@@ -1,0 +1,365 @@
+<%- include('partials/header') %>
+
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 id="pollTitle">Loading poll...</h3>
+        <div>
+          <span class="badge bg-success" id="pollStatus">Active</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="text-muted">
+          <small>Created by: <span id="pollCreator">...</span></small>
+        </p>
+        <p id="pollDescription" class="mb-4">Loading description...</p>
+        
+        <div id="loadingIndicator" class="text-center my-5">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading poll details...</p>
+        </div>
+        
+        <div id="pollContent" style="display: none;">
+          <form id="voteForm">
+            <div class="mb-4" id="optionsContainer">
+              <!-- Poll options will be inserted here -->
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+              <button type="submit" class="btn btn-primary" id="voteButton">Submit Vote</button>
+            </div>
+          </form>
+        </div>
+        
+        <div id="alreadyVoted" style="display: none;" class="alert alert-info">
+          <p>You've already voted in this poll. Your selection: <strong id="userVote"></strong></p>
+          <div class="text-center">
+            <button class="btn btn-outline-primary" id="viewResultsBtn">View Results</button>
+          </div>
+        </div>
+        
+        <div id="resultsContainer" style="display: none;">
+          <h4 class="mb-3">Poll Results</h4>
+          <div id="pollResults">
+            <!-- Results will be inserted here -->
+          </div>
+          <div class="text-center mt-3">
+            <p><strong>Total votes: </strong><span id="totalVotes">0</span></p>
+          </div>
+        </div>
+        
+        <div id="pollError" style="display: none;" class="alert alert-danger">
+          Error loading poll. Please try again later.
+        </div>
+      </div>
+      <div class="card-footer">
+        <a href="/polls" class="btn btn-outline-secondary">Back to Polls</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.chart-container {
+  max-width: 400px;
+  margin: 0 auto;
+}
+.results-list {
+  max-width: 500px;
+  margin: 0 auto;
+}
+.color-indicator {
+  min-width: 16px;
+}
+</style>
+
+<script>
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  }
+
+  document.addEventListener('DOMContentLoaded', async function() {
+    const pathParts = window.location.pathname.split('/');
+    const pollId = pathParts[pathParts.length - 1];
+    
+    if (!pollId) {
+      showError('Invalid poll URL');
+      return;
+    }
+    
+    try {
+      const token = getCookie('token');
+      console.log('Token:', token); // Debug token
+      
+      // Debug API calls
+      console.log('Making request to:', `/api/polls/${pollId}`);
+      const pollResponse = await fetch(`/api/polls/${pollId}`, {
+        headers: {
+          'Authorization': token
+        }
+      });
+      
+      console.log('Poll response status:', pollResponse.status);
+      
+      if (!pollResponse.ok) {
+        const errorText = await pollResponse.text();
+        console.error('Poll API Error:', errorText);
+        throw new Error('Failed to fetch poll details');
+      }
+      
+      const pollData = await pollResponse.json();
+      console.log('Poll data:', pollData); // Debug received data
+      
+      // Similar debugging for vote status
+      const voteStatusResponse = await fetch(`/api/polls/${pollId}/vote/status`, {
+        headers: {
+          'Authorization': token
+        }
+      });
+      
+      if (!voteStatusResponse.ok) {
+        const errorText = await voteStatusResponse.text();
+        console.error('Vote status error:', errorText);
+        throw new Error('Failed to check vote status');
+      }
+      
+      const voteStatus = await voteStatusResponse.json();
+      console.log('Vote status:', voteStatus);
+      
+      displayPoll(pollData, voteStatus);
+      
+      if (voteStatus.has_voted) {
+        showAlreadyVoted(pollData, voteStatus);
+        
+        document.getElementById('viewResultsBtn').addEventListener('click', function() {
+          document.getElementById('alreadyVoted').style.display = 'none';
+          fetchAndDisplayResults(pollId, token);
+        });
+      } else {
+        setupVoting(pollId, pollData.options, token);
+      }
+    } catch (error) {
+      console.error('Full error:', error);
+      showError(error.message || 'Failed to load poll data. Please try again later.');
+    }
+  });
+  
+  function displayPoll(pollData, voteStatus) {
+    document.getElementById('pollTitle').textContent = pollData.title;
+    document.getElementById('pollCreator').textContent = 
+      pollData.creator_id?.username || 'Anonymous';
+    
+    const description = document.getElementById('pollDescription');
+    if (pollData.description) {
+      description.textContent = pollData.description;
+    } else {
+      description.textContent = 'No description provided';
+      description.classList.add('text-muted');
+    }
+    
+    const statusBadge = document.getElementById('pollStatus');
+    if (!pollData.is_active) {
+      statusBadge.textContent = 'Inactive';
+      statusBadge.classList.remove('bg-success');
+      statusBadge.classList.add('bg-secondary');
+    }
+    
+    document.getElementById('loadingIndicator').style.display = 'none';
+    
+    if (!voteStatus.has_voted) {
+      document.getElementById('pollContent').style.display = 'block';
+    }
+  }
+  
+  function setupVoting(pollId, options, token) {
+    const optionsContainer = document.getElementById('optionsContainer');
+    optionsContainer.innerHTML = '';
+    
+    options.forEach((option, index) => {
+      const optionDiv = document.createElement('div');
+      optionDiv.className = 'form-check mb-2';
+      optionDiv.innerHTML = `
+        <input class="form-check-input" type="radio" name="pollOption" 
+               id="option${index}" value="${option._id}" ${index === 0 ? 'checked' : ''}>
+        <label class="form-check-label" for="option${index}">
+          ${option.option_text}
+        </label>
+      `;
+      optionsContainer.appendChild(optionDiv);
+    });
+    
+    document.getElementById('voteForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const selectedOption = document.querySelector('input[name="pollOption"]:checked').value;
+      
+      try {
+        const response = await fetch(`/api/polls/${pollId}/vote`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization':token  
+          },
+          body: JSON.stringify({ option_id: selectedOption })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          document.getElementById('pollContent').style.display = 'none';
+          
+          document.getElementById('userVote').textContent = 
+            options.find(opt => opt._id === selectedOption).option_text;
+          document.getElementById('alreadyVoted').style.display = 'block';
+          
+          document.getElementById('viewResultsBtn').addEventListener('click', function() {
+            document.getElementById('alreadyVoted').style.display = 'none';
+            fetchAndDisplayResults(pollId, token);
+          });
+        } else {
+          alert(result.message || 'Failed to cast vote');
+        }
+      } catch (error) {
+        console.error('Error voting:', error);
+        alert('An error occurred while submitting your vote. Please try again.');
+      }
+    });
+  }
+  
+  function showAlreadyVoted(pollData, voteStatus) {
+    document.getElementById('pollContent').style.display = 'none';
+    
+    const userVoteOption = pollData.options.find(opt => opt._id === voteStatus.option_id);
+    if (userVoteOption) {
+      document.getElementById('userVote').textContent = userVoteOption.option_text;
+    }
+    
+    document.getElementById('alreadyVoted').style.display = 'block';
+  }
+  
+  async function fetchAndDisplayResults(pollId, token) {
+    try {
+      const resultsResponse = await fetch(`/api/polls/${pollId}/results`, {
+        headers: {
+          'Authorization': token  
+        }
+      });
+      
+      if (!resultsResponse.ok) {
+        throw new Error('Failed to fetch results');
+      }
+      
+      const resultsData = await resultsResponse.json();
+      displayResults(resultsData);
+    } catch (error) {
+      console.error('Error fetching results:', error);
+      alert('Failed to load poll results. Please try again later.');
+    }
+  }
+  
+  function displayResults(resultsData) {
+    const resultsContainer = document.getElementById('pollResults');
+    resultsContainer.innerHTML = '';
+    
+    const totalVotes = resultsData.total_votes;
+    document.getElementById('totalVotes').textContent = totalVotes;
+  
+    // Create canvas for the chart
+    const chartContainer = document.createElement('div');
+    chartContainer.className = 'chart-container mb-4';
+    chartContainer.style.position = 'relative';
+    chartContainer.style.height = '300px';
+    chartContainer.style.width = '100%';
+    
+    const canvas = document.createElement('canvas');
+    canvas.id = 'resultsChart';
+    chartContainer.appendChild(canvas);
+    resultsContainer.appendChild(chartContainer);
+  
+    // Create list of results below the chart
+    const resultsList = document.createElement('div');
+    resultsList.className = 'results-list';
+    
+    resultsData.results.forEach(result => {
+      const percentage = totalVotes > 0 ? Math.round((result.count / totalVotes) * 100) : 0;
+      
+      const resultItem = document.createElement('div');
+      resultItem.className = 'd-flex align-items-center mb-2';
+      resultItem.innerHTML = `
+        <div class="color-indicator" style="width: 16px; height: 16px; border-radius: 3px; margin-right: 8px;"></div>
+        <span class="me-2">${result.option_text}</span>
+        <span class="ms-auto"><strong>${result.count}</strong> (${percentage}%)</span>
+      `;
+      resultsList.appendChild(resultItem);
+    });
+    
+    resultsContainer.appendChild(resultsList);
+  
+    // Prepare data for the chart
+    const labels = resultsData.results.map(r => r.option_text);
+    const data = resultsData.results.map(r => r.count);
+    const backgroundColors = [
+      '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', 
+      '#e74a3b', '#858796', '#5a5c69', '#3a3b45'
+    ];
+  
+    // Create the donut chart
+    const ctx = document.getElementById('resultsChart').getContext('2d');
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{
+          data: data,
+          backgroundColor: backgroundColors,
+          hoverBackgroundColor: backgroundColors.map(c => `${c}cc`),
+          hoverBorderColor: "rgba(234, 236, 244, 1)",
+        }],
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins: {
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.raw || 0;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = Math.round((value / total) * 100);
+                return `${label}: ${value} (${percentage}%)`;
+              }
+            }
+          },
+          legend: {
+            display: false
+          }
+        },
+        cutout: '70%',
+      }
+    });
+  
+    // Set color indicators in the list to match the chart
+    const colorIndicators = resultsList.querySelectorAll('.color-indicator');
+    colorIndicators.forEach((indicator, index) => {
+      indicator.style.backgroundColor = backgroundColors[index % backgroundColors.length];
+    });
+  
+    document.getElementById('resultsContainer').style.display = 'block';
+  }
+  
+  function showError(message) {
+    document.getElementById('loadingIndicator').style.display = 'none';
+    document.getElementById('pollContent').style.display = 'none';
+    
+    const errorDiv = document.getElementById('pollError');
+    errorDiv.textContent = message;
+    errorDiv.style.display = 'block';
+  }
+</script>

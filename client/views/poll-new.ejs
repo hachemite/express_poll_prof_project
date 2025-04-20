@@ -1,0 +1,184 @@
+<%- include('partials/header') %>
+
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="card">
+      <div class="card-header">
+        <h3>Create New Poll</h3>
+      </div>
+      <div class="card-body">
+        <form id="createPollForm">
+          <div class="mb-3">
+            <label for="pollTitle" class="form-label">Poll Title*</label>
+            <input type="text" class="form-control" id="pollTitle" required>
+            <div class="form-text">Give your poll a clear, concise title</div>
+          </div>
+          
+          <div class="mb-3">
+            <label for="pollDescription" class="form-label">Description</label>
+            <textarea class="form-control" id="pollDescription" rows="3"></textarea>
+            <div class="form-text">Provide additional context for your poll (optional)</div>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">Poll Options*</label>
+            <div id="optionsContainer">
+              <div class="input-group mb-2">
+                <input type="text" class="form-control poll-option" placeholder="Option 1" required>
+                <button class="btn btn-outline-secondary delete-option" type="button" disabled>
+                  <i class="bi bi-trash"></i> Remove
+                </button>
+              </div>
+              <div class="input-group mb-2">
+                <input type="text" class="form-control poll-option" placeholder="Option 2" required>
+                <button class="btn btn-outline-secondary delete-option" type="button" disabled>
+                  <i class="bi bi-trash"></i> Remove
+                </button>
+              </div>
+            </div>
+            <button type="button" id="addOptionBtn" class="btn btn-outline-primary btn-sm">
+              Add Another Option
+            </button>
+          </div>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label for="startDate" class="form-label">Start Date</label>
+              <input type="datetime-local" class="form-control" id="startDate">
+              <div class="form-text">Leave blank to start immediately</div>
+            </div>
+            <div class="col-md-6">
+              <label for="endDate" class="form-label">End Date</label>
+              <input type="datetime-local" class="form-control" id="endDate">
+              <div class="form-text">Leave blank for no end date</div>
+            </div>
+          </div>
+          
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+            <a href="/polls" class="btn btn-outline-secondary me-md-2">Cancel</a>
+            <button type="submit" class="btn btn-primary">Create Poll</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+  }
+  document.addEventListener('DOMContentLoaded', function() {
+    const optionsContainer = document.getElementById('optionsContainer');
+    const addOptionBtn = document.getElementById('addOptionBtn');
+    const form = document.getElementById('createPollForm');
+    
+    // Add new option field
+    addOptionBtn.addEventListener('click', function() {
+      const optionIndex = document.querySelectorAll('.poll-option').length + 1;
+      const optionGroup = document.createElement('div');
+      optionGroup.className = 'input-group mb-2';
+      optionGroup.innerHTML = `
+        <input type="text" class="form-control poll-option" placeholder="Option ${optionIndex}" required>
+        <button class="btn btn-outline-secondary delete-option" type="button">
+          <i class="bi bi-trash"></i> Remove
+        </button>
+      `;
+      
+      optionsContainer.appendChild(optionGroup);
+      
+      // Enable all delete buttons if we have more than 2 options
+      if (document.querySelectorAll('.poll-option').length > 2) {
+        document.querySelectorAll('.delete-option').forEach(btn => {
+          btn.disabled = false;
+        });
+      }
+      
+      // Add event listener to the new delete button
+      optionGroup.querySelector('.delete-option').addEventListener('click', function() {
+        optionGroup.remove();
+        
+        // Disable delete buttons if we have only 2 options
+        if (document.querySelectorAll('.poll-option').length <= 2) {
+          document.querySelectorAll('.delete-option').forEach(btn => {
+            btn.disabled = true;
+          });
+        }
+        
+        // Update placeholders
+        updateOptionPlaceholders();
+      });
+    });
+    
+    // Form submission
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      // Collect form data
+      const title = document.getElementById('pollTitle').value.trim();
+      const description = document.getElementById('pollDescription').value.trim();
+      const optionInputs = document.querySelectorAll('.poll-option');
+      const options = Array.from(optionInputs).map(input => input.value.trim());
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      
+      // Create request payload
+      const pollData = {
+        title,
+        description,
+        options,
+        is_active: true
+      };
+      
+      if (startDate) {
+        pollData.start_date = new Date(startDate).toISOString();
+      }
+      
+      if (endDate) {
+        pollData.end_date = new Date(endDate).toISOString();
+      }
+      
+      try {
+        const token = getCookie('token');
+        const user = JSON.parse(getCookie('user'));
+        
+        if (user && user.id) {
+          pollData.creator_id = user.id;
+        }
+        
+        const response = await fetch('/api/polls', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token
+          },
+          body: JSON.stringify(pollData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+          window.location.href = `/polls/${result.poll._id}`;
+        } else {
+          alert(result.message || 'Failed to create poll');
+        }
+      } catch (error) {
+        console.error('Error creating poll:', error);
+        alert('An error occurred while creating the poll. Please try again.');
+      }
+    });
+    
+    // Helper function to update option placeholders
+    function updateOptionPlaceholders() {
+      const optionInputs = document.querySelectorAll('.poll-option');
+      optionInputs.forEach((input, index) => {
+        input.placeholder = `Option ${index + 1}`;
+      });
+    }
+  });
+</script>
+
+<%- include('partials/footer') %>

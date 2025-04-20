@@ -1,0 +1,70 @@
+<%- include('partials/header') %>
+
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h4 class="text-center">Login</h4>
+      </div>
+      <div class="card-body">
+        <% if (message) { %>
+          <div class="alert alert-danger">
+            <%= message %>
+          </div>
+        <% } %>
+        <form id="loginForm">
+          <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" id="password" name="password" required>
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary">Login</button>
+          </div>
+        </form>
+      </div>
+      <div class="card-footer text-center">
+        Don't have an account? <a href="/register">Register</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    try {
+      const response = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ email, password })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Store token and user info in cookies
+        document.cookie = `token=${data.token}; path=/`;
+        document.cookie = `user=${JSON.stringify(data.user)}; path=/`;
+        window.location.href = '/';
+      } else {
+        // Show error message
+        alert(data.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An error occurred. Please try again.');
+    }
+  });
+</script>
+
+<%- include('partials/footer') %>

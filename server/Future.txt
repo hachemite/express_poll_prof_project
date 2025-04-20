@@ -1,0 +1,7 @@
+Additional Features
+
+Real-time updates with WebSockets
+Analytics for poll creators
+Export results functionality (CSV, PDF)
+Poll templates
+Image/media support for poll options
